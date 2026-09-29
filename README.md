@@ -20,6 +20,9 @@ Then set your API key:
 export MANUS_API_KEY="your-manus-api-key"
 ```
 
+`MANUS_MCP_API_KEY` is also accepted, for anyone migrating from the older
+MCP server.
+
 Restart Claude Code, then just ask it to run something on Manus.
 
 ## The helper
@@ -47,23 +50,13 @@ Useful `create` flags: `--profile standard|lite|max`, `--locale`, `--title`,
 `--visibility private|team|public`, `--interactive`, `--connector <id>`,
 `--project <project_id>`, `--schema <file.json>`.
 
-## Three gotchas this skill exists to handle
+## Why this exists
 
-**1. `stopped` does not mean finished.** A task can report `status: "stopped"`
-while background jobs are still working. Always check
-`has_running_background_jobs`:
-
-- `true` → keep polling
-- `false` → genuinely done
-- **absent → unknown**, not `false`
-
-**2. `waiting` needs a human.** It means the agent paused for input.
-Polling will never resolve it — reply in the Manus webapp or use `send`.
-
-**3. `error` is terminal.** Report it; don't retry the same prompt blindly.
-
-The helper implements all three, so prefer `run`/`wait` over hand-rolling a
-polling loop.
+Manus tasks are asynchronous, and the API has traps that make naive polling
+wrong — most notably, a task reporting `status: "stopped"` may still have
+background jobs running. The helper implements the correct completion logic,
+so prefer `run`/`wait` over hand-rolling a polling loop. The three traps are
+documented in [skills/manus/SKILL.md](skills/manus/SKILL.md).
 
 ## API
 
