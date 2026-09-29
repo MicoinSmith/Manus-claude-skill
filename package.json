@@ -1,0 +1,28 @@
+{
+  "name": "manus-skill",
+  "version": "1.0.0",
+  "description": "Run and manage Manus AI tasks from Claude Code — create tasks, poll asynchronous runs to completion, and retrieve results.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-plugin",
+    "claude-skill",
+    "manus",
+    "ai",
+    "automation",
+    "tasks"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    ".claude-plugin",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ]
+}

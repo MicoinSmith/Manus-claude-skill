@@ -1,0 +1,16 @@
+{
+  "name": "manus-skill",
+  "version": "1.0.0",
+  "description": "Manus AI integration for Claude Code — submit tasks to Manus, poll them to completion, and retrieve results. Includes a skill with a zero-dependency CLI helper for the Manus API v2.",
+  "author": {
+    "name": "manus-skill contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "manus",
+    "ai",
+    "automation",
+    "agent",
+    "tasks"
+  ]
+}

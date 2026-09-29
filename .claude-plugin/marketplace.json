@@ -1,0 +1,22 @@
+{
+  "name": "manus-skill",
+  "owner": {
+    "name": "manus-skill contributors"
+  },
+  "metadata": {
+    "description": "Manus AI task automation for Claude Code — create tasks, poll asynchronous runs to completion, and retrieve results."
+  },
+  "plugins": [
+    {
+      "name": "manus-skill",
+      "source": "./",
+      "description": "Run and manage Manus AI tasks from Claude Code — create a task, poll the asynchronous run to completion, and retrieve its output. Ships a skill plus a zero-dependency CLI helper for the Manus API v2.",
+      "keywords": [
+        "manus",
+        "ai",
+        "automation",
+        "tasks"
+      ]
+    }
+  ]
+}
