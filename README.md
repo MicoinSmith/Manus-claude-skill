@@ -10,7 +10,7 @@ output in a single step instead of a `task_id` that goes nowhere.
 ## Install
 
 ```bash
-claude plugin marketplace add /path/to/Manus-skill
+claude plugin marketplace add https://github.com/MicoinSmith/manus-skill
 claude plugin install manus-skill@manus-skill
 ```
 
