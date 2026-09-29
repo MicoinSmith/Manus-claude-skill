@@ -9,17 +9,9 @@ output in a single step instead of a `task_id` that goes nowhere.
 
 ## Install
 
-Two commands — works on every Claude Code version:
-
 ```bash
 claude plugin marketplace add https://github.com/MicoinSmith/Manus-claude-skill
 claude plugin install manus-claude-skill@manus-claude-skill
-```
-
-On Claude Code **v2.1.275+** you can do both in one step:
-
-```bash
-claude plugin install manus-claude-skill --marketplace https://github.com/MicoinSmith/Manus-claude-skill
 ```
 
 Then activate it in your running session (no restart needed):
@@ -66,8 +58,7 @@ credits"*, or `/manus-claude-skill:manus`.
 
 ## The helper
 
-Everything goes through `skills/manus/scripts/manus.mjs` — zero dependencies,
-Node 18+ (uses the built-in `fetch`).
+Everything goes through `skills/manus/scripts/manus.mjs` (Node 18+).
 
 ```bash
 MANUS="skills/manus/scripts/manus.mjs"
@@ -116,35 +107,6 @@ Useful `create` flags: `--profile standard|lite|max`, `--locale`, `--title`,
 > server-side no matter what `--profile` asks for, so `--profile max` silently
 > does nothing. `run` warns when that happens and `status` reports the profile a
 > task actually used. `credits` infers your account kind from the API response.
-
-## Why this exists
-
-Manus tasks are asynchronous, and the API has traps that make naive polling
-wrong — most notably, a task reporting `status: "stopped"` may still have
-background jobs running. The helper implements the correct completion logic,
-so prefer `run`/`wait` over hand-rolling a polling loop. The three traps are
-documented in [skills/manus/SKILL.md](skills/manus/SKILL.md).
-
-## API
-
-Targets the **current Manus API v2**: base `https://api.manus.ai`, auth via the
-`x-manus-api-key` header, `{ok, request_id, ...}` response envelope.
-
-> The older v1 API (`/v1/tasks`, `API_KEY` header, `{prompt, mode}` body) is
-> **deprecated** and incompatible. This project does not use it.
-
-## Proxy support
-
-Node's `fetch` ignores `HTTP_PROXY` / `HTTPS_PROXY`. The helper detects a
-configured proxy and re-execs itself with `--use-env-proxy` on Node 24+; on
-older Node it prints a clear warning instead of failing with an opaque
-`fetch failed`.
-
-## Development
-
-```bash
-npm test    # node --test
-```
 
 ## License
 
