@@ -9,21 +9,60 @@ output in a single step instead of a `task_id` that goes nowhere.
 
 ## Install
 
+Two commands — works on every Claude Code version:
+
 ```bash
 claude plugin marketplace add https://github.com/MicoinSmith/Manus-claude-skill
 claude plugin install manus-claude-skill@manus-claude-skill
 ```
 
-Then set your API key:
+On Claude Code **v2.1.275+** you can do both in one step:
+
+```bash
+claude plugin install manus-claude-skill --marketplace https://github.com/MicoinSmith/Manus-claude-skill
+```
+
+Then activate it in your running session (no restart needed):
+
+```
+/reload-plugins
+```
+
+### Give it an API key
+
+Get one from the Manus webapp developer settings (up to 50 per account, shown
+only once). Then pick **one** of these:
 
 ```bash
 export MANUS_API_KEY="your-manus-api-key"
 ```
 
-`MANUS_MCP_API_KEY` is also accepted, for anyone migrating from the older
-MCP server.
+```json
+// ~/.claude/settings.json
+{
+  "env": {
+    "MANUS_API_KEY": "your-manus-api-key"
+  }
+}
+```
 
-Restart Claude Code, then just ask it to run something on Manus.
+> **Use the `settings.json` form if you launch Claude Code from the desktop app
+> or an IDE.** A shell `export` only reaches Claude Code when it was started
+> *from that same shell*; the desktop app and IDE extensions do not inherit
+> your shell environment, so the skill would find no key. `settings.json` works
+> in every launch mode.
+
+`MANUS_MCP_API_KEY` is also accepted, for anyone migrating from the older MCP
+server.
+
+### Check it worked
+
+```bash
+claude plugin list          # should list manus-claude-skill
+```
+
+Then ask Claude to run something on Manus — for example *"use Manus to check my
+credits"*, or `/manus-claude-skill:manus`.
 
 ## The helper
 
