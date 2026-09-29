@@ -28,17 +28,24 @@ settings (up to 50 per account, shown only once).
 
 ## The helper
 
-All calls go through `scripts/manus.mjs` (zero dependencies, Node 18+). Locate
-it once, then reuse `$MANUS` for every command:
+All calls go through `scripts/manus.mjs` (zero dependencies, Node 18+). Resolve
+it **from this skill's own base directory**, which is reported when the skill
+loads (look for `Base directory for this skill: …/skills/manus`):
 
 ```bash
-MANUS=$(find ~/.claude/plugins -path "*skills/manus/scripts/manus.mjs" 2>/dev/null | head -1)
-[ -z "$MANUS" ] && MANUS="skills/manus/scripts/manus.mjs"
+# Replace with the base directory reported when this skill loaded.
+MANUS="<skill base dir>/scripts/manus.mjs"
+
+# Working inside the manus-claude-skill repo itself? The relative path works.
+[ -f "$MANUS" ] || MANUS="skills/manus/scripts/manus.mjs"
 [ -f "$MANUS" ] || echo "helper not found — is the manus-claude-skill plugin installed?"
 ```
 
-If you are working inside the manus-claude-skill repo itself, `skills/manus/scripts/manus.mjs`
-resolves directly.
+> **Do not** locate the helper with
+> `find ~/.claude/plugins -path "*skills/manus/scripts/manus.mjs" | head -1`.
+> Claude Code keeps older releases in the plugin cache, so that pattern matches
+> several files and `head -1` returns the **oldest** one — the skill would then
+> run stale code while reading current instructions.
 
 ## Workflow: run a task and get the result
 
