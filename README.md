@@ -50,6 +50,11 @@ Useful `create` flags: `--profile standard|lite|max`, `--locale`, `--title`,
 `--visibility private|team|public`, `--interactive`, `--connector <id>`,
 `--project <project_id>`, `--schema <file.json>`.
 
+> **Account level matters.** Free personal accounts are downgraded to `lite`
+> server-side no matter what `--profile` asks for, so `--profile max` silently
+> does nothing. `run` warns when that happens and `status` reports the profile a
+> task actually used. `credits` infers your account kind from the API response.
+
 ## Why this exists
 
 Manus tasks are asynchronous, and the API has traps that make naive polling

@@ -138,7 +138,7 @@ at roughly 5,000 estimated tokens per request.
 
 | Flag | Maps to | Notes |
 |---|---|---|
-| `--profile <standard\|lite\|max>` | `agent_profile` | Default `standard`. `max` is slower but strongest |
+| `--profile <standard\|lite\|max>` | `agent_profile` | Default `standard`. See "Account level" — free personal accounts are downgraded |
 | `--locale <en\|zh-CN\|ja>` | `locale` | Defaults to the account locale |
 | `--title <text>` | `title` | Otherwise auto-generated |
 | `--visibility <private\|team\|public>` | `share_visibility` | Default `private`; non-private returns `share_url` |
@@ -149,6 +149,29 @@ at roughly 5,000 estimated tokens per request.
 
 With `--schema`, the result also comes back as a `structured_output_result`
 event, which the helper prints separately.
+
+## Account level
+
+The API never names a plan. Infer it from `usage.availableCredits` (the `credits`
+command does this for you):
+
+| Signal | Meaning |
+|---|---|
+| `refresh_interval` / `max_refresh_credits` present | **personal** account |
+| `pro_monthly_credits` > 0 | VIP |
+
+**Free personal accounts are downgraded to `lite` regardless of what
+`agent_profile` was requested.** So `--profile max` silently does nothing on
+those accounts — the task runs as `manus-1.6-lite`, at lite quality, with no
+error. Never promise the user a stronger model without checking.
+
+Read `agent_profile` back from the task instead of trusting the request: the
+`run` command warns when it differs, and `status` / `wait` print it.
+
+Rate limits are **per user, not per key**, and do **not** vary by plan
+(officially: "no tier differentiation"). The ones that matter here:
+`task.create` 10/min and `task.detail` 100/min — the default 5s polling interval
+sits well inside that.
 
 ## Cost and time
 

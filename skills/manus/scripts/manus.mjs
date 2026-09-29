@@ -264,6 +264,43 @@ export function asArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+/**
+ * Infer the account tier from a usage.availableCredits payload. The API never
+ * names a plan: `refresh_interval` / `max_refresh_credits` are present only for
+ * personal accounts, and `pro_monthly_credits` is 0 for non-VIP.
+ */
+export function describeAccount(payload) {
+  const credits = payload?.data ?? payload ?? {};
+  const isPersonal =
+    credits.refresh_interval !== undefined || credits.max_refresh_credits !== undefined;
+
+  return {
+    kind: isPersonal ? "personal" : "team-or-enterprise",
+    vip: Number(credits.pro_monthly_credits ?? 0) > 0,
+    ...(isPersonal
+      ? {
+          refreshInterval: credits.refresh_interval,
+          refreshCredits: credits.refresh_credits,
+          maxRefreshCredits: credits.max_refresh_credits,
+        }
+      : {}),
+  };
+}
+
+/**
+ * The API silently downgrades free personal accounts to `lite` whatever
+ * `agent_profile` was requested, so a task can run weaker than asked for without
+ * any error. Returns the profile actually in use when it differs, else null.
+ */
+export function profileDowngrade(requested, actual) {
+  if (!requested || !actual) return null;
+  const want = String(requested);
+  if (want === "standard") {
+    return /-(lite|max)$/.test(actual) ? actual : null;
+  }
+  return actual.endsWith(`-${want}`) ? null : actual;
+}
+
 function buildCreateBody(flags) {
   const prompt = flags.prompt;
   if (typeof prompt !== "string" || prompt.length === 0) {
@@ -347,6 +384,14 @@ async function main() {
         intervalMs: numberFlag(flags, "interval-sec", DEFAULT_INTERVAL_MS / 1000) * 1000,
       });
 
+      const downgraded = profileDowngrade(flags.profile, task?.agent_profile);
+      if (downgraded) {
+        note(
+          `requested agent_profile "${flags.profile}" but the task runs as "${downgraded}" — ` +
+            "free personal accounts are downgraded to lite"
+        );
+      }
+
       const result = await fetchResult(created.task_id, { verbose: Boolean(flags.verbose) });
 
       if (asJson) {
@@ -378,6 +423,7 @@ async function main() {
             `status:    ${task.status}`,
             `title:     ${task.title ?? "(none)"}`,
             `task_url:  ${task.task_url ?? ""}`,
+            `agent profile: ${task.agent_profile ?? "unknown"}`,
             `background jobs running: ${task.has_running_background_jobs ?? "unknown"}`,
             `credits used: ${task.credit_usage ?? 0}`,
           ].join("\n") + "\n"
@@ -391,6 +437,7 @@ async function main() {
         timeoutMs: numberFlag(flags, "timeout-sec", DEFAULT_WAIT_MS / 1000) * 1000,
         intervalMs: numberFlag(flags, "interval-sec", DEFAULT_INTERVAL_MS / 1000) * 1000,
       });
+      if (task?.agent_profile) note(`agent profile: ${task.agent_profile}`);
       if (reason === "waiting") note("agent is waiting for human input");
       if (reason === "error") fail("task ended with an error");
       if (asJson) process.stdout.write(JSON.stringify(task, null, 2) + "\n");
@@ -436,8 +483,32 @@ async function main() {
     }
 
     case "credits": {
-      const credits = await api("/v2/usage.availableCredits");
-      process.stdout.write(JSON.stringify(credits, null, 2) + "\n");
+      const payload = await api("/v2/usage.availableCredits");
+      const credits = payload?.data ?? payload ?? {};
+      const account = describeAccount(payload);
+
+      if (asJson) {
+        process.stdout.write(JSON.stringify({ ...payload, account }, null, 2) + "\n");
+        return;
+      }
+
+      const lines = [
+        `account:       ${account.kind}${account.vip ? " (VIP)" : " (non-VIP)"}`,
+        `total credits: ${credits.total_credits ?? "?"}`,
+        `free credits:  ${credits.free_credits ?? "?"}`,
+      ];
+      if (account.refreshInterval) {
+        lines.push(
+          `refresh:       ${account.refreshCredits ?? 0} / ${account.maxRefreshCredits ?? "?"}` +
+            ` per ${account.refreshInterval}`
+        );
+      }
+      if (account.kind === "personal" && !account.vip) {
+        lines.push(
+          "note:          free personal accounts run tasks as lite regardless of --profile"
+        );
+      }
+      process.stdout.write(lines.join("\n") + "\n");
       return;
     }
 

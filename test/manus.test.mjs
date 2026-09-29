@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import {
   asArray,
   classify,
+  describeAccount,
   eventText,
   parseFlags,
+  profileDowngrade,
 } from "../skills/manus/scripts/manus.mjs";
 
 describe("classify", () => {
@@ -99,6 +101,59 @@ describe("eventText", () => {
   test("returns null when there is no text", () => {
     assert.equal(eventText({}), null);
     assert.equal(eventText(undefined), null);
+  });
+});
+
+describe("describeAccount", () => {
+  test("infers a personal account from the personal-only fields", () => {
+    const account = describeAccount({
+      total_credits: 1218,
+      refresh_interval: "daily",
+      refresh_credits: 288,
+      max_refresh_credits: 300,
+    });
+    assert.equal(account.kind, "personal");
+    assert.equal(account.vip, false);
+    assert.equal(account.refreshInterval, "daily");
+  });
+
+  test("treats a non-zero pro_monthly_credits as VIP", () => {
+    assert.equal(describeAccount({ pro_monthly_credits: 500, refresh_interval: "daily" }).vip, true);
+  });
+
+  test("reads through a data wrapper", () => {
+    assert.equal(describeAccount({ ok: true, data: { refresh_interval: "daily" } }).kind, "personal");
+  });
+
+  test("reports team-or-enterprise when the personal fields are absent", () => {
+    assert.equal(describeAccount({ total_credits: 10 }).kind, "team-or-enterprise");
+  });
+
+  test("does not crash on a missing payload", () => {
+    assert.equal(describeAccount(undefined).kind, "team-or-enterprise");
+  });
+});
+
+describe("profileDowngrade", () => {
+  test("flags standard silently downgraded to lite", () => {
+    assert.equal(profileDowngrade("standard", "manus-1.6-lite"), "manus-1.6-lite");
+  });
+
+  test("accepts standard running as plain manus-1.6", () => {
+    assert.equal(profileDowngrade("standard", "manus-1.6"), null);
+  });
+
+  test("flags lite requested while standard actually ran", () => {
+    assert.equal(profileDowngrade("lite", "manus-1.6"), "manus-1.6");
+  });
+
+  test("accepts lite running as lite", () => {
+    assert.equal(profileDowngrade("lite", "manus-1.6-lite"), null);
+  });
+
+  test("returns null when either side is unknown", () => {
+    assert.equal(profileDowngrade(undefined, "manus-1.6-lite"), null);
+    assert.equal(profileDowngrade("standard", undefined), null);
   });
 });
 
