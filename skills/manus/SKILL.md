@@ -15,11 +15,16 @@ A task that has merely been created has no output yet.
 The helper needs an API key. Check it is present before anything else:
 
 ```bash
-[ -n "$MANUS_API_KEY" ] && echo "key present" || echo "MANUS_API_KEY MISSING"
+if [ -n "$MANUS_API_KEY" ] || [ -n "$MANUS_MCP_API_KEY" ]; then
+  echo "key present"
+else
+  echo "no Manus API key set"
+fi
 ```
 
-Get a key from the Manus webapp developer settings (up to 50 per account, shown
-only once). `MANUS_MCP_API_KEY` is also accepted for backwards compatibility.
+Either variable works: `MANUS_API_KEY` is preferred, `MANUS_MCP_API_KEY` is the
+legacy name and is checked second. Get a key from the Manus webapp developer
+settings (up to 50 per account, shown only once).
 
 ## The helper
 
