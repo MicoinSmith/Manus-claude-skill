@@ -59,6 +59,45 @@ node "$MANUS" wait <task_id>               # blocks until done
 node "$MANUS" result <task_id>             # prints the output text
 ```
 
+## Attaching local files
+
+A Manus task can only read what you give it. To have it process a local file,
+attach it — **upload is on demand only**, it never sweeps a directory or uploads
+anything you did not name:
+
+```bash
+node "$MANUS" run   --prompt "Summarise this report" --attach ./report.pdf
+node "$MANUS" run   --prompt "Compare these" --attach ./a.csv --attach ./b.csv
+node "$MANUS" send  <task_id> --prompt "Now chart it" --attach ./data.xlsx
+```
+
+`--attach` is repeatable and works on `create`, `run`, and `send`.
+
+Upload once and reuse the id if several tasks need the same file (ids stay valid
+for 48 hours):
+
+```bash
+node "$MANUS" upload ./report.pdf      # → file_id: file-abc123
+node "$MANUS" create --prompt "..." --file-id file-abc123
+```
+
+`--file-id` skips the upload entirely — use it when the file is already on
+Manus, or when it was uploaded by another process.
+
+### Limits and constraints
+
+| Constraint | Value |
+|---|---|
+| Per file, via `file_id` | 512 MB |
+| Per file, via a public URL | 20 MB (not used by this helper) |
+| Account storage | 10 GB |
+| Presigned upload URL | expires in **3 minutes** (the helper uploads immediately) |
+| Uploaded files | auto-deleted after **48 hours** |
+| Blocked types | `.exe` `.sh` `.bat` `.dmg` `.cmd` `.com` `.msi` `.scr` `.ps1` |
+
+The helper checks existence, size, and the blocked-extension list locally, so a
+bad attachment fails before any request is made.
+
 ## Checking on an existing task
 
 When the user gives you a task ID or a `manus.im/app/<task_id>` URL, extract the
@@ -146,6 +185,8 @@ at roughly 5,000 estimated tokens per request.
 | `--connector <id>` (repeatable) | `message.connectors` | Pre-configured connectors only |
 | `--project <project_id>` | `project_id` | Applies the project's instruction |
 | `--schema <file.json>` | `structured_output_schema` | Forces machine-readable output |
+| `--attach <path>` (repeatable) | `message.content[].file_id` | Uploads then attaches; see "Attaching local files" |
+| `--file-id <id>` (repeatable) | `message.content[].file_id` | Attach an already-uploaded file, no upload |
 
 With `--schema`, the result also comes back as a `structured_output_result`
 event, which the helper prints separately.

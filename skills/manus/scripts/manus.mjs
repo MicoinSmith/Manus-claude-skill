@@ -8,7 +8,9 @@
  */
 
 import { readFileSync, realpathSync } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { basename, extname } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const API_BASE = (process.env.MANUS_API_BASE_URL || "https://api.manus.ai").replace(/\/+$/, "");
@@ -18,6 +20,19 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_WAIT_MS = 30 * 60_000;
 const DEFAULT_INTERVAL_MS = 5_000;
 const MAX_PAGES = 20;
+const MAX_UPLOAD_BYTES = 512 * 1024 * 1024;
+/** The API rejects executable and script types outright. */
+const BLOCKED_UPLOAD_EXTENSIONS = new Set([
+  ".exe",
+  ".sh",
+  ".bat",
+  ".dmg",
+  ".cmd",
+  ".com",
+  ".msi",
+  ".scr",
+  ".ps1",
+]);
 
 const USAGE = `manus — Manus API v2 helper
 
@@ -31,6 +46,7 @@ Usage:
   manus list   [--limit N]                 List tasks
   manus stop   <task_id>                   Stop a running task
   manus credits                            Show available credits
+  manus upload <path>                      Upload a file now, print its file_id
 
 Options for create/run:
   --profile <standard|lite|max>            Agent profile (default: standard)
@@ -41,6 +57,8 @@ Options for create/run:
   --connector <id>                         Connector id, repeatable
   --project <project_id>                   Attach to a project
   --schema <file.json>                     Structured output JSON Schema
+  --attach <path>                          Upload a local file and attach it, repeatable
+  --file-id <id>                           Attach an already-uploaded file, repeatable
   --json                                   Print raw JSON instead of text
 
 Environment:
@@ -301,13 +319,85 @@ export function profileDowngrade(requested, actual) {
   return actual.endsWith(`-${want}`) ? null : actual;
 }
 
-function buildCreateBody(flags) {
+/**
+ * Build a message.content value. Manus accepts either a plain string or an array
+ * of ContentPart objects; files are referenced as {type: "file", file_id}.
+ */
+export function buildContent(prompt, fileIds = []) {
+  if (fileIds.length === 0) return prompt;
+  return [
+    { type: "text", text: prompt },
+    ...fileIds.map((fileId) => ({ type: "file", file_id: fileId })),
+  ];
+}
+
+/**
+ * Upload one local file with the two-step v2 flow: create a file record, then
+ * PUT the bytes to the presigned URL it returns (which expires in 3 minutes).
+ * Returns the file_id to reference from message.content.
+ */
+async function uploadFile(filePath) {
+  const name = basename(filePath);
+
+  if (BLOCKED_UPLOAD_EXTENSIONS.has(extname(filePath).toLowerCase())) {
+    fail(`cannot attach ${name}: the API rejects executable and script types`);
+  }
+
+  let info;
+  try {
+    info = await stat(filePath);
+  } catch (error) {
+    fail(`cannot read --attach ${filePath}: ${error?.message ?? error}`);
+  }
+  if (!info.isFile()) fail(`--attach ${filePath} is not a regular file`);
+  if (info.size > MAX_UPLOAD_BYTES) {
+    fail(`--attach ${filePath} is ${info.size} bytes, over the 512 MB per-file limit`);
+  }
+
+  const created = await api("/v2/file.upload", { method: "POST", body: { filename: name } });
+  const fileId = created.file?.id;
+  const uploadUrl = created.upload_url;
+  if (!fileId || !uploadUrl) fail(`file.upload returned no usable id or url for ${name}`);
+
+  const bytes = await readFile(filePath);
+  let response;
+  try {
+    response = await fetch(uploadUrl, {
+      method: "PUT",
+      body: bytes,
+      signal: AbortSignal.timeout(180_000),
+    });
+  } catch (error) {
+    fail(`upload of ${name} failed: ${error?.message ?? error}`);
+  }
+  if (!response.ok) fail(`upload of ${name} failed [HTTP ${response.status}]`);
+
+  return fileId;
+}
+
+async function uploadAttachments(paths) {
+  const ids = [];
+  for (const filePath of paths) {
+    ids.push(await uploadFile(filePath));
+    note(`attached ${basename(filePath)}`);
+  }
+  return ids;
+}
+
+/** Already-uploaded ids first, then anything that needs uploading now. */
+async function resolveFileIds(flags) {
+  const existing = asArray(flags["file-id"]).map(String);
+  const uploaded = await uploadAttachments(asArray(flags.attach));
+  return [...existing, ...uploaded];
+}
+
+function buildCreateBody(flags, fileIds = []) {
   const prompt = flags.prompt;
   if (typeof prompt !== "string" || prompt.length === 0) {
     fail("--prompt is required and must be a non-empty string");
   }
 
-  const message = { content: prompt };
+  const message = { content: buildContent(prompt, fileIds) };
   const connectors = asArray(flags.connector);
   if (connectors.length > 0) message.connectors = connectors;
 
@@ -369,14 +459,16 @@ async function main() {
 
   switch (command) {
     case "create": {
-      const created = await api("/v2/task.create", { method: "POST", body: buildCreateBody(flags) });
+      const fileIds = await resolveFileIds(flags);
+      const created = await api("/v2/task.create", { method: "POST", body: buildCreateBody(flags, fileIds) });
       if (asJson) process.stdout.write(JSON.stringify(created, null, 2) + "\n");
       else printTaskSummary(created);
       return;
     }
 
     case "run": {
-      const created = await api("/v2/task.create", { method: "POST", body: buildCreateBody(flags) });
+      const fileIds = await resolveFileIds(flags);
+      const created = await api("/v2/task.create", { method: "POST", body: buildCreateBody(flags, fileIds) });
       note(`created ${created.task_id}`);
 
       const { task, reason } = await waitForCompletion(created.task_id, {
@@ -457,9 +549,10 @@ async function main() {
       const taskId = requireTaskId(positional, "send");
       const prompt = flags.prompt;
       if (typeof prompt !== "string" || prompt.length === 0) fail("--prompt is required");
+      const fileIds = await resolveFileIds(flags);
       const sent = await api("/v2/task.sendMessage", {
         method: "POST",
-        body: { task_id: taskId, message: { content: prompt } },
+        body: { task_id: taskId, message: { content: buildContent(prompt, fileIds) } },
       });
       process.stdout.write(JSON.stringify(sent, null, 2) + "\n");
       return;
@@ -479,6 +572,18 @@ async function main() {
         body: { task_id: requireTaskId(positional, "stop") },
       });
       process.stdout.write(JSON.stringify(stopped, null, 2) + "\n");
+      return;
+    }
+
+    case "upload": {
+      const filePath = positional[0];
+      if (!filePath) fail("upload requires a <path>");
+      const fileId = await uploadFile(filePath);
+      if (asJson) {
+        process.stdout.write(JSON.stringify({ file_id: fileId, path: filePath }, null, 2) + "\n");
+      } else {
+        process.stdout.write(`file_id: ${fileId}\n`);
+      }
       return;
     }
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   asArray,
+  buildContent,
   classify,
   describeAccount,
   eventText,
@@ -101,6 +102,21 @@ describe("eventText", () => {
   test("returns null when there is no text", () => {
     assert.equal(eventText({}), null);
     assert.equal(eventText(undefined), null);
+  });
+});
+
+describe("buildContent", () => {
+  test("returns a plain string when nothing is attached", () => {
+    assert.equal(buildContent("summarise the report"), "summarise the report");
+    assert.equal(buildContent("summarise the report", []), "summarise the report");
+  });
+
+  test("builds a text part plus one file part per attachment", () => {
+    assert.deepEqual(buildContent("summarise this", ["file_abc", "file_def"]), [
+      { type: "text", text: "summarise this" },
+      { type: "file", file_id: "file_abc" },
+      { type: "file", file_id: "file_def" },
+    ]);
   });
 });
 

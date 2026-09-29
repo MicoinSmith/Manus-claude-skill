@@ -42,7 +42,30 @@ node "$MANUS" send   <task_id> --prompt "..."   # follow-up turn
 node "$MANUS" list   --limit 20
 node "$MANUS" stop   <task_id>
 node "$MANUS" credits
+node "$MANUS" upload ./report.pdf        # → file_id, reusable for 48h
 ```
+
+## Attaching files
+
+A Manus task can only read what you give it. Uploads are **on demand** — the
+helper never sweeps a directory or uploads anything you did not name:
+
+```bash
+node "$MANUS" run  --prompt "Summarise this report" --attach ./report.pdf
+node "$MANUS" run  --prompt "Compare these" --attach ./a.csv --attach ./b.csv
+node "$MANUS" send <task_id> --prompt "Now chart it" --attach ./data.xlsx
+```
+
+`--attach` is repeatable and works on `create`, `run`, and `send`. To reuse one
+upload across several tasks, upload it once and pass the id:
+
+```bash
+node "$MANUS" upload ./report.pdf              # → file_id: file-abc123
+node "$MANUS" create --prompt "..." --file-id file-abc123
+```
+
+Limits: 512 MB per file, 10 GB per account, files are deleted after 48 hours,
+and executable/script types are rejected. The helper validates locally first.
 
 `run` is the common case — it creates, polls, and prints the result.
 
