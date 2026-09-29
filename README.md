@@ -1,4 +1,4 @@
-# manus-skill
+# manus-claude-skill
 
 Run and manage **Manus AI tasks** from Claude Code — create a task, poll the
 asynchronous run to completion, and retrieve its output.
@@ -10,8 +10,8 @@ output in a single step instead of a `task_id` that goes nowhere.
 ## Install
 
 ```bash
-claude plugin marketplace add https://github.com/MicoinSmith/Manus-skill
-claude plugin install manus-skill@manus-skill
+claude plugin marketplace add https://github.com/MicoinSmith/Manus-claude-skill
+claude plugin install manus-claude-skill@manus-claude-skill
 ```
 
 Then set your API key:
@@ -83,7 +83,7 @@ older Node it prints a clear warning instead of failing with an opaque
 ## Development
 
 ```bash
-npm test    # node --test test/
+npm test    # node --test
 ```
 
 ## License

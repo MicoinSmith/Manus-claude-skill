@@ -29,10 +29,10 @@ it once, then reuse `$MANUS` for every command:
 ```bash
 MANUS=$(find ~/.claude/plugins -path "*skills/manus/scripts/manus.mjs" 2>/dev/null | head -1)
 [ -z "$MANUS" ] && MANUS="skills/manus/scripts/manus.mjs"
-[ -f "$MANUS" ] || echo "helper not found — is the manus-skill plugin installed?"
+[ -f "$MANUS" ] || echo "helper not found — is the manus-claude-skill plugin installed?"
 ```
 
-If you are working inside the manus-skill repo itself, `skills/manus/scripts/manus.mjs`
+If you are working inside the manus-claude-skill repo itself, `skills/manus/scripts/manus.mjs`
 resolves directly.
 
 ## Workflow: run a task and get the result

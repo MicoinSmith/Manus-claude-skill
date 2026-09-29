@@ -1,5 +1,5 @@
 {
-  "name": "manus-skill",
+  "name": "manus-claude-skill",
   "version": "1.0.0",
   "description": "Run and manage Manus AI tasks from Claude Code — create tasks, poll asynchronous runs to completion, and retrieve results.",
   "type": "module",
